@@ -1,0 +1,16 @@
+[Unit]
+Description=Mastodon docker-compose service for {DOMAIN}
+
+[Service]
+User=mastodon
+Restart=always
+
+# Update the next line if you're put mastodon's docker-compose.yaml someplace else.
+WorkingDirectory=/opt/mastodon
+
+ExecStart=/usr/bin/docker-compose up
+ExecStop=/usr/bin/docker-compose down
+
+[Install]
+WantedBy=network.service
+WantedBy=multi-user.target

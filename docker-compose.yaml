@@ -1,0 +1,122 @@
+version: "3.7"
+
+# Adopted from:
+#  https://blog.riemann.cc/digitalisation/2022/02/06/mastodon-setup-with-docker-and-nginx-proxy/
+#  - nginx removed, ports changed
+#
+
+services:
+  db:
+    restart: always
+    image: postgres:14-alpine
+    shm_size: 256mb
+    networks:
+      - internal_network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+    volumes:
+      - ./mastodon-data/postgres14:/var/lib/postgresql/data
+      - ./mastodon_db.sql:/docker-entrypoint-initdb.d/mastodon_db.sql
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+
+  redis:
+    restart: always
+    image: redis:6-alpine
+    networks:
+      - internal_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+    volumes:
+      - ./mastodon-data/redis:/data
+
+  es:
+    restart: always
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
+    environment:
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "cluster.name=es-mastodon"
+      - "discovery.type=single-node"
+      - "bootstrap.memory_lock=true"
+    networks:
+      - internal_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail localhost:9200/_cluster/health || exit 1"]
+    volumes:
+      - ./mastodon-data/elasticsearch:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+  # Make sure to keep the web port (5050) in sync with httpd/mastodon.conf if you want to customise.
+  mastodon_web:
+    image: tootsuite/mastodon:v3.5.1
+    restart: always
+    env_file: mastodon.env.production
+    command: bash -c "rm -f /mastodon/tmp/pids/server.pid; bundle exec rails s -p 5050"
+    networks:
+      - external_network
+      - internal_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider --proxy=off localhost:5050/health || exit 1"]
+    ports:
+      - "127.0.0.1:5050:5050"
+    depends_on:
+      - db
+      - redis
+      - es
+    volumes:
+      - ./mastodon-data/public/system:/mastodon/public/system
+    environment:
+      VIRTUAL_HOST: "{DOMAIN}"
+      VIRTUAL_PATH: "/"
+      VIRTUAL_PORT: 5050
+      ES_HOST: es
+      ES_ENABLED: "true"
+
+  # Make sure to keep the streaming port (5051) in sync with httpd/mastodon.conf if you want to customise.
+  streaming:
+    image: tootsuite/mastodon:v3.5.1
+    restart: always
+    env_file: mastodon.env.production
+    command: node ./streaming
+    networks:
+      - external_network
+      - internal_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider --proxy=off localhost:5051/api/v1/streaming/health || exit 1"]
+    ports:
+      - "127.0.0.1:5051:5051"
+    depends_on:
+      - db
+      - redis
+    environment:
+      VIRTUAL_HOST: "{DOMAIN}"
+      VIRTUAL_PATH: "/api/v1/streaming"
+      VIRTUAL_PORT: 5051
+
+  sidekiq:
+    image: tootsuite/mastodon:v3.5.1
+    restart: always
+    env_file: mastodon.env.production
+    command: bundle exec sidekiq
+    depends_on:
+      - db
+      - redis
+    networks:
+      - external_network
+      - internal_network
+    volumes:
+      - ./mastodon-data/public/system:/mastodon/public/system
+    environment:
+      VIRTUAL_HOST: "{DOMAIN}"
+      VIRTUAL_PATH: "/"
+      VIRTUAL_PORT: 5050
+      ES_HOST: es
+      ES_ENABLED: "true"
+
+networks:
+  external_network:
+  internal_network:
+    internal: true
