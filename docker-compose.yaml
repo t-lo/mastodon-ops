@@ -95,6 +95,7 @@ services:
       VIRTUAL_HOST: "{DOMAIN}"
       VIRTUAL_PATH: "/api/v1/streaming"
       VIRTUAL_PORT: 5051
+      PORT: 5051
 
   sidekiq:
     image: tootsuite/mastodon:v3.5.1
