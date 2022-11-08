@@ -5,7 +5,7 @@ Description=Mastodon docker-compose service for {DOMAIN}
 User=mastodon
 Restart=always
 
-# Update the next line if you're put mastodon's docker-compose.yaml someplace else.
+# Update the next line if you've put mastodon's docker-compose.yaml someplace else.
 WorkingDirectory=/opt/mastodon
 
 ExecStart=/usr/bin/docker-compose up

@@ -1,0 +1,9 @@
+[Unit]
+Description=Mastodon periodic cache cleaner
+
+[Service]
+User=mastodon
+Type=oneshot
+WorkingDirectory=/opt/mastodon
+# Update the next line if you've put the cache cleaner script someplace else
+ExecStart=/opt/mastodon/mastodon-cache-cleaner.sh

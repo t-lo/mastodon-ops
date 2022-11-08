@@ -27,16 +27,24 @@ cd "${dest_dir}"
 xz -d -c "${sql_in}" > mastodon_db.sql
 tar xJf "${data_in}"
 
+chown -R mastodon:mastodon mastodon-data/
+# remove stale ES locks
+rm -f mastodon-data/elasticsearch/nodes/*/node.lock
 chown 991:991 mastodon.env.production
 chown -R 991:991 mastodon-data/public
 chmod g+rwx mastodon-data/elasticsearch
-chgrp 0 mastodon-data/elasticsearch
+chown -R 1000:1001 mastodon-data/elasticsearch
 
 chown mastodon:mastodon docker-compose.yaml
 
+docker-compose up --detach || true
+sleep 60
 # Initialise mastodon
 docker-compose run --rm -v $(pwd)/mastodon.env.production:/opt/mastodon/.env.production -e RAILS_ENV=production mastodon_web bundle exec rails assets:precompile
 docker-compose run --rm -v $(pwd)/mastodon.env.production:/opt/mastodon/.env.production -e RAILS_ENV=production mastodon_web /opt/mastodon/bin/tootctl feeds build
+
+# make sure search index is up to date
+docker-compose run --rm -v $(pwd)/mastodon.env.production:/opt/mastodon/.env.production -e RAILS_ENV=production mastodon_web /opt/mastodon/bin/tootctl search deploy
 
 # Make sure all services are stopped
 docker-compose down

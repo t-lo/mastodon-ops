@@ -28,6 +28,8 @@ The manual set-up instructions below are rather detailed which may make this loo
 2. A httpd configuration. Apache httpd will act as our https / tls terminator and will proxy incoming connections.
 3. A systemd unit file so the service is started at boot time, and restarted should it encounter issues.
 4. A very simple backup script and a discussion on how to restore the instance from a backup (as the saying goes, "no one wants backup but eventually, everybody  wants restore").
+5. A cleanup script to run periodically to remove cached images.
+   Systemd timer and service units are included.
 
 # Installing
 
@@ -117,9 +119,9 @@ The guide uses `/opt/mastodon` as mastodon's installation directory; if you like
    $ mkdir -p mastodon-data/elasticsearch
    $ chown -R mastodon:mastodon /opt/mastodon
    $ chmod g+rwx mastodon-data/elasticsearch
-   $ chgrp 0 mastodon-data/elasticsearch
+   $ chown -R 1000:1001 mastodon-data/elasticsearch
    ```
-6. Copy this repo's `docker-compose.yaml` to `/opt/mastodon/`.
+6. Copy this repo's `docker-compose.yaml` and `mastodon-cache-cleaner.sh` to `/opt/mastodon/`.
    We'll now run mastodon's interactive first-time setup.
    Please keep the following information ready:
    1. `{DOMAIN}`
@@ -144,7 +146,7 @@ The guide uses `/opt/mastodon` as mastodon's installation directory; if you like
    Make sure to watch the `docker-compose up` output for errors and stack traces.
    If everything works finewe can wrap things up and install the systemd service.
    Stop the instance by pressing `CTRL+C` in the terminal where you started `docker-compose up`.
-7. Copy this repo's systemd service file to `/etc/systemd/sustem/` and run 
+7. Copy this repo's systemd service files and timer to `/etc/systemd/system/` and run 
    ```shell
    $ systemctl daemon-reload
    $ systemctl enable --now mastodon

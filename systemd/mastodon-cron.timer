@@ -1,0 +1,9 @@
+[Unit]
+Description=Mastodon periodic cache cleaner
+
+[Timer]
+OnUnitActiveSec=1day
+OnActiveSec=1day
+
+[Install]
+WantedBy=timers.target
